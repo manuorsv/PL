@@ -1,0 +1,554 @@
+package asint;
+
+import java_cup.runtime.*;
+import alex.AnalizadorLexicoTiny;
+import alex.UnidadLexica;
+import errors.GestionErrores;
+import ast.*;
+import ast.e.*;
+import ast.i.*;
+import ast.t.*;
+import java.util.ArrayDeque;
+
+scan with {: return getScanner().next_token(); :};
+
+action code {:
+   private ASExpresion as = new ASExpresion();
+:};
+
+parser code {: 
+   private GestionErrores errores;
+   public void syntax_error(Symbol unidadLexica) {
+     errores.errorSintactico((UnidadLexica)unidadLexica);
+   }
+:};
+init with {: 
+   errores = new GestionErrores();
+   AnalizadorLexicoTiny alex = (AnalizadorLexicoTiny)getScanner();
+   alex.fijaGestionErrores(errores);
+:};
+
+
+terminal     String NUM, IDEN;
+terminal     TYPEDEF, STRUCT,
+
+             FUNCTION, RETURN, VOID, NEW, MAIN, PRINT,
+
+             IF, ELSE,
+             WHILE, FOR, SWITCH, CASE,
+             BREAK, CONTINUE,
+             DEFAULT,
+
+             BOOLEAN, INTEGER, LIST, PUNT,
+             TRUE, FALSE, NULL,
+
+             SUM, SUB, MULT, DIV, MOD,
+             
+             MAYOR, MENOR, MENOROIGUAL, 
+             MAYOROIGUAL, IGUAL, IGUALIGUAL, 
+             NOIGUAL, AND, OR, NOT,
+             
+             PARAPERTURA, PARCIERRE, 
+             LLAVEAPERTURA, LLAVECIERRE,
+             CORCHAPERTURA, CORCHCIERRE, 
+             
+             COMA, PUNTOCOMA, DOSPUNTOS, PUNTO,
+             ASTERISCO, AMPERSAND, BARRABAJA, DOLLAR;
+
+non terminal ProgramaCompleto PROG_COMP;
+
+non terminal Cabecera CABECERA;
+
+non terminal CuerpoMain CUERPO_MAIN;
+
+non terminal Cuerpo CUER, CUER_FUN;
+
+non terminal Expresion Exp0, Exp1, Exp2, Exp3, 
+			 Exp4, Exp5, Exp6, Exp7, Exp8;
+
+non terminal Id Ident;
+			 
+non terminal Instruccion INST;
+non terminal InstruccionIfElse INST_IF, INST_IFELSE;
+non terminal InstruccionWhile INST_WHILE; 
+non terminal InstruccionSwitch INST_SWITCH;
+non terminal InstruccionFor INST_FOR;
+non terminal InstruccionAsignacion INST_ASIG;
+non terminal InstruccionDeclaracion INST_DECL, INST_DECLASIG, INST_DECL_PUNT; 
+non terminal InstruccionAsigVector INST_ASIG_VECTOR; 
+non terminal InstruccionDeclVector INST_DECL_VECTOR;
+non terminal InstruccionDeclStruct INST_STRUCT;
+non terminal InstruccionDeclFuncion INST_DECL_FUN; 
+non terminal InstruccionLlamadaFuncion INST_CALL_PROC;
+non terminal InstruccionReturn INST_RETURN;
+non terminal InstruccionTypedef INST_TYPEDEF;
+non terminal InstruccionReservaMemoria INST_MEM;
+non terminal InstruccionPrint INST_PRINT;
+
+non terminal ExpresionLlamadaFuncion EXPR_LLAM_FUN;
+non terminal List EXP_VECTOR;
+non terminal ListIndex EXPR_ACC_VECT;
+
+non terminal Tipo Tip;
+non terminal TipoLista Tip_vect;
+
+non terminal ArrayDeque<Tipo_Id> ARGUMENTOS_INI, ARGUMENTOS;
+
+non terminal ArrayDeque<Expresion> ARGUMENTOSPROC_INI, ARGUMENTOSPROC, LIST_VAL, LIST_VAL2, LIST_VAL3, INDICES;
+
+non terminal ArrayDeque<Instruccion> CAMPOS_STRUCT;
+
+//1 PROGRAMA COMPLETO
+PROG_COMP ::= CABECERA: cab MAIN LLAVEAPERTURA CUERPO_MAIN: c_main LLAVECIERRE
+{: RESULT = new ProgramaCompleto(cab, c_main); :};
+
+//2 CABECERA
+CABECERA ::= INST_DECL_FUN: inst CABECERA: cab
+{: cab.addInstr(inst); RESULT = cab; :};
+
+CABECERA ::= INST_DECLASIG: inst PUNTOCOMA CABECERA: cab
+{: cab.addInstr(inst); RESULT = cab; :};
+
+CABECERA ::= INST_DECL: inst PUNTOCOMA CABECERA: cab
+{: cab.addInstr(inst); RESULT = cab; :};
+
+CABECERA ::= INST_DECL_VECTOR: inst PUNTOCOMA CABECERA: cab
+{: cab.addInstr(inst); RESULT = cab; :};
+
+CABECERA ::= INST_DECL_PUNT: inst PUNTOCOMA CABECERA: cab
+{: cab.addInstr(inst); RESULT = cab; :};
+
+CABECERA ::= INST_ASIG: inst PUNTOCOMA CABECERA: cab
+{: cab.addInstr(inst); RESULT = cab; :};
+
+CABECERA ::= INST_ASIG_VECTOR: inst PUNTOCOMA CABECERA: cab
+{: cab.addInstr(inst); RESULT = cab; :};
+
+CABECERA ::= INST_TYPEDEF: inst PUNTOCOMA CABECERA: cab
+{: cab.addInstr(inst); RESULT = cab; :};
+
+CABECERA ::= INST_STRUCT: inst PUNTOCOMA CABECERA: cab
+{: cab.addInstr(inst); RESULT = cab; :};
+
+CABECERA ::= INST_MEM: inst PUNTOCOMA CABECERA: cab
+{: cab.addInstr(inst); RESULT = cab; :};
+
+CABECERA ::=
+{: RESULT = new Cabecera(); :};
+
+// MAIN
+CUERPO_MAIN ::= INST_DECLASIG: inst PUNTOCOMA CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_DECL: inst PUNTOCOMA CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_DECL_VECTOR: inst PUNTOCOMA CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_DECL_PUNT: inst PUNTOCOMA CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_ASIG: inst PUNTOCOMA CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_ASIG_VECTOR: inst PUNTOCOMA CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_CALL_PROC: inst PUNTOCOMA CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_FOR: inst CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_IF: inst CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_IFELSE: inst CUERPO_MAIN: c_main 
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_WHILE: inst CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_MEM: inst PUNTOCOMA CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::= INST_PRINT: inst PUNTOCOMA CUERPO_MAIN: c_main
+{: c_main.addInstr(inst); RESULT = c_main; :};
+
+CUERPO_MAIN ::=
+{: RESULT = new CuerpoMain(); :};
+
+//3 EXPRESIONES
+
+//OR
+Exp0 ::= Exp0: exp1 OR Exp1: exp2
+        {: RESULT = as.or(exp1, exp2); :};
+Exp0 ::= Exp1: exp
+        {: RESULT = exp; :};
+
+//AND
+Exp1 ::= Exp1: exp1 AND Exp2: exp2 
+        {: RESULT = as.and(exp1, exp2); :};
+Exp1 ::= Exp2 : exp
+        {: RESULT = exp; :};
+
+//NOT
+Exp2 ::= NOT Exp2: exp2 
+        {: RESULT = as.not(exp2); :};
+Exp2 ::= Exp3 : exp
+        {: RESULT = exp; :};
+
+//IGUALDAD Y NO IGUALDAD
+Exp3 ::= Exp3: exp1 IGUALIGUAL Exp4: exp2
+        {: RESULT = as.equals(exp1, exp2); :};
+Exp3 ::= Exp3: exp1 NOIGUAL Exp4: exp2
+        {: RESULT = as.nequals(exp1, exp2); :};
+Exp3 ::= Exp4: exp
+        {: RESULT = exp; :};
+
+//COMPARADORES
+Exp4 ::= Exp4: exp1 MENOR Exp5: exp2
+        {: RESULT = as.lt(exp1, exp2); :};
+Exp4 ::= Exp4: exp1 MAYOR Exp5: exp2
+        {: RESULT = as.gt(exp1, exp2); :};
+Exp4 ::= Exp4: exp1 MENOROIGUAL Exp5: exp2
+        {: RESULT = as.leq(exp1, exp2); :};
+Exp4 ::= Exp4: exp1 MAYOROIGUAL Exp5: exp2
+        {: RESULT = as.geq(exp1, exp2); :};
+Exp4 ::= Exp5: exp
+        {: RESULT = exp; :}; 
+
+//OPERADORES ARITMETICOS
+Exp5 ::= Exp5: exp1 SUM Exp6: exp2           
+        {: RESULT = as.suma(exp1, exp2); :};
+Exp5 ::= Exp5: exp1 SUB Exp6: exp2           
+        {: RESULT = as.resta(exp1, exp2); :}; 
+Exp5 ::= Exp6: exp           
+        {: RESULT = exp; :};
+        
+Exp6 ::= Exp6: exp1 MULT Exp7: exp2           
+        {: RESULT = as.mul(exp1, exp2); :};
+Exp6 ::= Exp6: exp1 DIV Exp7: exp2           
+        {: RESULT = as.div(exp1, exp2); :};
+Exp6 ::= Exp6: exp1 MOD Exp7: exp2           
+        {: RESULT = as.mod(exp1, exp2); :};
+Exp6 ::= Exp7: exp           
+        {: RESULT = exp; :};
+
+//CASOS BASE DE ENTEROS Y BOOLEANOS
+Exp7 ::= NUM: cadenaNum           
+        {: RESULT = as.num(cadenaNum); :};
+Exp7 ::= TRUE
+        {: RESULT = as.bool_true(); :};
+Exp7 ::= FALSE
+        {: RESULT = as.bool_false(); :};
+
+//CASO BASE IDENTIFICADORES
+Exp7 ::= Ident: id
+        {: RESULT = id; :};
+
+//CASO BASE LLAMADA FUNCION
+Exp7 ::= EXPR_LLAM_FUN: llam_fun
+{: RESULT = llam_fun; :};
+
+//CASO BASE ACCESO A VECTOR
+Exp7 ::= EXPR_ACC_VECT: acc
+{: RESULT = acc; :};
+
+//CASO BASE VECTOR
+Exp7 ::= EXP_VECTOR: v
+{: RESULT = v; :};
+
+//4 INSTRUCCIONES
+/*
+INST ::= INST_IF:op1
+{:RESULT = op1;:};
+INST ::= INST_IFELSE:op1
+{:RESULT = op1;:};
+INST ::= INST_WHILE:op1
+{:RESULT = op1;:};
+INST ::= INST_FOR:op1
+{:RESULT = op1;:};
+INST ::= INST_ASIG:op1
+{:RESULT = op1;:};
+INST ::= INST_DECL:op1
+{:RESULT = op1;:};
+INST ::= INST_DECLASIG:op1
+{:RESULT = op1;:};
+INST ::= INST_DECL_FUN:op1
+{:RESULT = op1;:};
+INST ::= INST_CALL_PROC:op1
+{:RESULT = op1;:};
+INST ::= INST_RETURN:op1
+{:RESULT = op1;:};
+*/
+
+// CUERPO
+CUER ::= INST_DECLASIG: inst PUNTOCOMA CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_DECL: inst PUNTOCOMA CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_DECL_VECTOR: inst PUNTOCOMA CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_DECL_PUNT: inst PUNTOCOMA CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_ASIG: inst PUNTOCOMA CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_ASIG_VECTOR: inst PUNTOCOMA CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_CALL_PROC: inst PUNTOCOMA CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_FOR: inst CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_IF: inst CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_IFELSE: inst CUER: c 
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_WHILE: inst CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_MEM: inst PUNTOCOMA CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::= INST_PRINT: inst PUNTOCOMA CUER: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER ::=
+{: RESULT = new Cuerpo(); :}; 
+
+//IF
+INST_IF ::= IF PARAPERTURA Exp0: cond PARCIERRE LLAVEAPERTURA CUER: cif LLAVECIERRE
+{: RESULT = new InstruccionIfElse(cond, cif); :};
+
+//IF-ELSE
+INST_IFELSE ::= IF PARAPERTURA Exp0: cond PARCIERRE LLAVEAPERTURA CUER: cif LLAVECIERRE ELSE LLAVEAPERTURA CUER: celse LLAVECIERRE
+{: RESULT = new InstruccionIfElse(cond, cif, celse); :};
+
+//WHILE
+INST_WHILE ::= WHILE PARAPERTURA Exp0: cond PARCIERRE LLAVEAPERTURA CUER: cwhile LLAVECIERRE
+{: RESULT = new InstruccionWhile(cond, cwhile); :};
+
+//FOR
+INST_FOR ::= FOR PARAPERTURA INST_ASIG: ini PUNTOCOMA Exp0: cond PUNTOCOMA INST_ASIG: paso PARCIERRE LLAVEAPERTURA CUER: cfor LLAVECIERRE
+{: RESULT = new InstruccionFor(ini.getId(), ini.getValor(), cond, paso.getValor(), cfor); :}; 
+
+INST_FOR ::= FOR PARAPERTURA INST_DECLASIG: ini PUNTOCOMA Exp0: cond PUNTOCOMA INST_ASIG: paso PARCIERRE LLAVEAPERTURA CUER: cfor LLAVECIERRE
+{: RESULT = new InstruccionFor(ini.getId(), ini.getValor(), cond, paso.getValor(), cfor); :}; 
+
+//ASIGNACION VECTORES
+INST_ASIG_VECTOR  ::= Ident: id IGUAL LLAVEAPERTURA EXP_VECTOR: v
+{: RESULT = new InstruccionAsigVector(id,v.valores());:};
+
+//ASIGNACION
+INST_ASIG ::= Ident: id IGUAL Exp0: exp
+{: RESULT = new InstruccionAsignacion(id, exp); :};
+
+//DECLARACION
+INST_DECL ::= Tip: t Ident: id
+{: RESULT = new InstruccionDeclaracion(t,id); :};
+
+//DECLARACION VECTORES
+INST_DECL_VECTOR ::= Tip_vect: t Ident: id
+{: RESULT = new InstruccionDeclVector(t.getTipoDeLaLista(),id,t.length()); :};
+
+//DECLARACION CON ASIGNACION
+INST_DECLASIG ::= Tip: t Ident: id IGUAL Exp0: exp
+{: RESULT = new InstruccionDeclaracion(t,id,exp); :};
+
+//DECLARACION VECTORES CON ASIGNACION
+INST_DECL_VECTOR  ::= Tip_vect: t Ident: id IGUAL EXP_VECTOR: v
+{: RESULT = new InstruccionDeclVector(t.getTipoDeLaLista(),id,t.length(),v.valores());:};
+
+//DECLARACION PUNTERO
+INST_DECL_PUNT ::= Tip: t DOLLAR Ident: id
+{: RESULT = new InstruccionDeclaracion(new TipoPuntero(t),id); :};
+
+//ARGUMENTOS FUNCION
+ARGUMENTOS_INI ::= Tip: t Ident: id ARGUMENTOS: arg
+{: arg.addFirst(new Tipo_Id(t, id)); RESULT = arg; :};
+
+ARGUMENTOS_INI ::= Tip: t AMPERSAND Ident: id ARGUMENTOS: arg
+{: arg.addFirst(new Tipo_Id(t, id)); RESULT = arg; :};
+
+ARGUMENTOS_INI ::= Tip_vect: t Ident: id ARGUMENTOS: arg
+{: arg.addFirst(new Tipo_Id(t, id)); RESULT = arg; :};
+
+ARGUMENTOS_INI ::= Tip_vect: t AMPERSAND Ident: id ARGUMENTOS: arg
+{: arg.addFirst(new Tipo_Id(t, id)); RESULT = arg; :};
+
+ARGUMENTOS_INI ::= 
+{: RESULT = new ArrayDeque<Tipo_Id>(); :};
+
+ARGUMENTOS ::= COMA Tip: t Ident: id ARGUMENTOS: arg
+{: arg.addFirst(new Tipo_Id(t, id)); RESULT = arg; :};
+
+ARGUMENTOS ::= COMA Tip: t AMPERSAND Ident: id ARGUMENTOS: arg
+{: arg.addFirst(new Tipo_Id(t, id)); RESULT = arg; :};
+
+ARGUMENTOS ::= COMA Tip_vect: t Ident: id ARGUMENTOS: arg
+{: arg.addFirst(new Tipo_Id(t, id)); RESULT = arg; :};
+
+ARGUMENTOS ::= COMA Tip_vect: t AMPERSAND Ident: id ARGUMENTOS: arg
+{: arg.addFirst(new Tipo_Id(t, id)); RESULT = arg; :};
+
+ARGUMENTOS ::= 
+{: RESULT = new ArrayDeque<Tipo_Id>(); :};
+
+// CUERPO FUNCION
+CUER_FUN ::= INST_DECLASIG: inst PUNTOCOMA CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_DECL: inst PUNTOCOMA CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_DECL_VECTOR: inst PUNTOCOMA CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_DECL_PUNT: inst PUNTOCOMA CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_ASIG: inst PUNTOCOMA CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_ASIG_VECTOR: inst PUNTOCOMA CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_CALL_PROC: inst PUNTOCOMA CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_FOR: inst CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_IF: inst CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_IFELSE: inst CUER_FUN: c 
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_WHILE: inst CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+/*
+CUER_FUN ::= INST_RETURN: inst PUNTOCOMA CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+*/
+CUER_FUN ::= INST_MEM: inst PUNTOCOMA CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::= INST_PRINT: inst PUNTOCOMA CUER_FUN: c
+{: c.addInstr(inst); RESULT = c; :};
+
+CUER_FUN ::=
+{: RESULT = new Cuerpo(); :}; 
+
+//DECLARACION DE FUNCION
+INST_DECL_FUN ::= FUNCTION Tip: tipo_dev Ident: id PARAPERTURA ARGUMENTOS_INI: arg PARCIERRE LLAVEAPERTURA CUER_FUN: c RETURN Exp0: e PUNTOCOMA LLAVECIERRE
+{: RESULT = new InstruccionDeclFuncion(tipo_dev, id, arg, c, e); :};
+
+INST_DECL_FUN ::= FUNCTION Tip_vect: tipo_dev Ident: id PARAPERTURA ARGUMENTOS_INI: arg PARCIERRE LLAVEAPERTURA CUER_FUN: c RETURN Exp0: e PUNTOCOMA LLAVECIERRE
+{: RESULT = new InstruccionDeclFuncion(tipo_dev, id, arg, c, e); :};
+
+INST_DECL_FUN ::= FUNCTION VOID Ident: id PARAPERTURA ARGUMENTOS_INI: arg PARCIERRE LLAVEAPERTURA CUER: c LLAVECIERRE
+{: RESULT = new InstruccionDeclFuncion(null, id, arg, c, null); :};
+
+//ARGUMENTOS LLAMADA PROCEDIMIENTO
+ARGUMENTOSPROC_INI ::= Exp0: e ARGUMENTOSPROC: arg
+{: arg.addFirst(e); RESULT = arg; :};
+
+ARGUMENTOSPROC_INI ::= 
+{: RESULT = new ArrayDeque<Expresion>(); :};
+
+ARGUMENTOSPROC ::= COMA Exp0: e ARGUMENTOSPROC: arg
+{: arg.addFirst(e); RESULT = arg; :};
+
+ARGUMENTOSPROC ::= 
+{: RESULT = new ArrayDeque<Expresion>(); :};
+
+//RETURN
+INST_RETURN ::= RETURN Exp0: e
+{: RESULT = new InstruccionReturn(e); :};
+
+//PRINT
+INST_PRINT ::= PRINT Exp0: e
+{: RESULT = new InstruccionPrint(e); :};
+
+//LLAMADA A FUNCION (PROCEDIMIENTO)
+INST_CALL_PROC ::= Ident: id PARAPERTURA ARGUMENTOSPROC_INI: arg PARCIERRE
+{: RESULT = new InstruccionLlamadaFuncion(id, arg); :};
+
+//TYPEDEF
+INST_TYPEDEF ::= TYPEDEF Tip: tipo Ident: id
+{: RESULT = new InstruccionTypedef(tipo, id); :};
+
+//RESERVA MEMORIA
+INST_MEM ::= NEW PARAPERTURA Ident: id COMA NUM: tam PARCIERRE
+{: RESULT = new InstruccionReservaMemoria(id, tam); :};
+
+//STRUCTS
+INST_STRUCT ::= STRUCT:struct Ident:nombre LLAVEAPERTURA CAMPOS_STRUCT:lista LLAVECIERRE 
+{: RESULT = new InstruccionDeclStruct(nombre, lista); :};
+
+CAMPOS_STRUCT ::= INST_DECL:decl PUNTOCOMA CAMPOS_STRUCT:lista
+{:lista.add(decl); RESULT = lista;:};
+CAMPOS_STRUCT ::= INST_DECL_VECTOR:decl PUNTOCOMA CAMPOS_STRUCT:lista
+{:lista.add(decl); RESULT = lista;:};
+CAMPOS_STRUCT ::= 
+{:RESULT = new ArrayDeque<Instruccion>();:};
+
+//IDENTIFICADORES
+Ident ::= IDEN: id
+{: RESULT = new Id(id); :};
+
+//EXPRESION LLAMADA A FUNCION
+EXPR_LLAM_FUN ::= Ident: id PARAPERTURA ARGUMENTOSPROC_INI: arg PARCIERRE
+{: RESULT = new ExpresionLlamadaFuncion(id, arg); :};
+
+//EXPRESION ACCESO A VECTOR
+EXPR_ACC_VECT ::= Ident: id CORCHAPERTURA Exp0: idx CORCHCIERRE
+{: RESULT = new ListIndex(id, idx); :};
+
+//EXPRESION VECTOR
+EXP_VECTOR ::= LLAVEAPERTURA LIST_VAL3:list LLAVECIERRE
+{: RESULT = new List(list);:};
+LIST_VAL3  ::= Exp0:val
+{:ArrayDeque<Expresion> list = new ArrayDeque<Expresion>(); list.add(val); RESULT = list;:};
+LIST_VAL3  ::=  LIST_VAL3:list COMA Exp0:val 
+{:list.add(val); RESULT = list;:};
+
+//5 TIPOS
+
+Tip ::= INTEGER
+{: RESULT = new Tipo(Tipos.INTEGER); :};
+
+Tip ::= BOOLEAN
+{: RESULT = new Tipo(Tipos.BOOLEAN); :};
+
+Tip_vect ::= LIST MENOR Tip: t COMA NUM: n MAYOR
+{: RESULT = new TipoLista(t, n); :};
+
+Tip_vect ::= LIST MENOR Tip_vect: t COMA NUM: n MAYOR
+{: RESULT = new TipoLista(t, n); :};
+
+Tip ::= Ident : nombreStruct
+{: RESULT = new TipoStruct(nombreStruct.getS()); :};
+
+
+
+
+
+
+
+
+
+
+
